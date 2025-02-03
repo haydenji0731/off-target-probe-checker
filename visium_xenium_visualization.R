@@ -102,6 +102,7 @@ g <- 'KRT7'
 g <- 'APOBEC3B'
 g <- 'C1QA'
 g <- 'PLD4'
+g <- 'CEACAM6'
 
 xenium_df <- data.frame(xenium$pos, gexp=xenium$counts[g,])
 ggplot(xenium_df, aes(x=x, y=y, col=gexp)) + geom_point(size=0.001, alpha=0.5) + coord_fixed() + 
