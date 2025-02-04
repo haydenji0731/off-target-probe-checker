@@ -1,42 +1,42 @@
 #!/bin/bash
 
 # Set variables
-TRANSCRIPTOME_FASTA="gencode.v47.transcripts.fa"
+genome_FASTA="GRCh38.primary_assembly.genome.fa"
 PROBE_FASTA="xenium_human_breast_gene_expression_panel_probe_sequences.fasta"
 ALIGNER="hisat2"  # or "bowtie2"
-INDEX_PREFIX="gencode_transcriptome"
+INDEX_PREFIX="gencode_genome"
 ANNOTATION_GTF="gencode.v47.annotation.gtf"
 GENE_BED="chess3.1.1.GRCh38.genes.fmted.bed"
 
-# Create the transcriptome index
+# Create the genome index
 # echo "Building index..."
-# if [[ "$ALIGNER" == "hisat2" ]]; then
-#     hisat2-build $TRANSCRIPTOME_FASTA $INDEX_PREFIX
-# else
-#     bowtie2-build $TRANSCRIPTOME_FASTA $INDEX_PREFIX
-# fi
+if [[ "$ALIGNER" == "hisat2" ]]; then
+    hisat2-build $genome_FASTA $INDEX_PREFIX
+else
+    bowtie2-build $genome_FASTA $INDEX_PREFIX
+fi
 
-# Align probes to transcriptome
+# Align probes to genome
 echo "Aligning probes..."
 if [[ "$ALIGNER" == "hisat2" ]]; then
-    hisat2 -x $INDEX_PREFIX -f -U $PROBE_FASTA -S probes_transcriptome.sam --score-min L,0,-100
+    hisat2 -x $INDEX_PREFIX -f -U $PROBE_FASTA -S probes_genome.sam --score-min L,0,-100
 else
-    bowtie2 -x $INDEX_PREFIX -f -U $PROBE_FASTA -S probes_transcriptome.sam
+    bowtie2 -x $INDEX_PREFIX -f -U $PROBE_FASTA -S probes_genome.sam
 fi
 
 # Convert SAM to BAM, sort, and index
 echo "Processing BAM file..."
-samtools view -S -b probes_transcriptome.sam | samtools sort -o probes_transcriptome.bam
-samtools index probes_transcriptome.bam
+samtools view -S -b probes_genome.sam | samtools sort -o probes_genome.bam
+samtools index probes_genome.bam
 
 # Remove alignments to the negative strand
 # echo "Filtering positive-strand alignments..."
-# samtools view -h -F 16 probes_transcriptome.bam -o probes_positive.bam
+# samtools view -h -F 16 probes_genome.bam -o probes_positive.bam
 # samtools index probes_positive.bam
 
 # Convert BAM to BED
 echo "Converting BAM to BED..."
-bedtools bamtobed -i probes_transcriptome.bam > probes_transcriptome.bed
+bedtools bamtobed -i probes_genome.bam > probes_genome.bed
 
 # Download and extract the GTF annotation file if not already present
 # if [[ ! -f "$ANNOTATION_GTF" ]]; then
@@ -49,9 +49,9 @@ bedtools bamtobed -i probes_transcriptome.bam > probes_transcriptome.bed
 # echo "Creating transcript-to-genome mapping..."
 # awk '$3 == "transcript" {print $12, $1, $4, $5, $7}' $ANNOTATION_GTF | sed 's/"//g' | sed 's/;//g' > transcript_to_genome_map.tsv
 
-# Convert transcriptome-aligned BED to genome coordinates
-echo "Mapping transcriptome alignments to genome..."
-awk 'NR==FNR {map[$1]=$2"\t"$3"\t"$4"\t"$5; next} {split($1, a, "|"); if (a[1] in map) print map[a[1]], $2, $3, $4}' transcript_to_genome_map.tsv probes_transcriptome.bed > probes_genome.bed
+# Convert genome-aligned BED to genome coordinates
+echo "Mapping genome alignments to genome..."
+awk 'NR==FNR {map[$1]=$2"\t"$3"\t"$4"\t"$5; next} {split($1, a, "|"); if (a[1] in map) print map[a[1]], $2, $3, $4}' transcript_to_genome_map.tsv probes_genome.bed > probes_genome.bed
 
 # Find overlaps with gene regions
 echo "Finding overlaps with genes..."
@@ -90,7 +90,7 @@ END {
   for (gene in left) {
     print gene, (gene in right ? right[gene] : 0), left[gene], (gene in mismatch ? mismatch[gene] : "None");
   }
-}' extracted_genes.txt > gene_summary_transcriptome.txt
+}' extracted_genes.txt > gene_summary_genome.txt
 
 
 
@@ -100,4 +100,4 @@ echo "  - BED format alignments: probes_positive.bed"
 echo "  - Mapped genomic alignments: probes_genome.bed"
 echo "  - Gene overlaps: overlaps_xenium_unique.bed"
 echo "  - Extracted genes: extracted_genes.txt"
-echo "  - Gene match summary: gene_summary_transcriptome.txt"
+echo "  - Gene match summary: gene_summary_genome.txt"
