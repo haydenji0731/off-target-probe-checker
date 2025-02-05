@@ -29,3 +29,5 @@ hisat2/probes_transcriptome.bed
 hisat2/probes_transcriptome.sam
 hisat2/transcript_to_genome_map.tsv
 hisat2/xenium_human_breast_gene_expression_panel_probe_sequences.fasta
+data/*fa
+data/*fxi
