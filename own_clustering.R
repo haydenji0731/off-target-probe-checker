@@ -250,7 +250,7 @@ offtargets
 #install.packages('nnls')
 library(nnls)
 B <- t(singlecell.summary.mm[offtargets,])
-heatmap(cbind(xenium=xenium.summary.mm[g,], as.matrix(B)), scale='col', Colv=NA)
+heatmap(cbind(xenium=xenium.summary.mm[g,], as.matrix(B)), scale='none', Colv=NA)
 
 nnls_result <- nnls(B, xenium.summary.mm[g,])
 names(nnls_result$x) <- offtargets
