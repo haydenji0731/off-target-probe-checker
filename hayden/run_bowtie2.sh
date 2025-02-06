@@ -28,11 +28,12 @@ done
 
 tgt_prefix=$(basename "$tgt" .fa)
 tgt_prefix="${tgt_prefix%.fasta}"
-qry_prefix=$(basename "$qry" .fa | basename "$qry" .fasta)
+qry_prefix=$(basename "$qry" .fa)
+qry_prefix="${qry_prefix%.fasta}"
 
 # indexing command (optional)
-"${bowtie}/bowtie2-build" $tgt "${index_dir}/${tgt_prefix}" --threads $p
+#"${bowtie}/bowtie2-build" $tgt "${index_dir}/${tgt_prefix}" --threads $p
 
-"${bowtie}/bowtie2" -f -x "${index_dir}/${tgt_prefix}" -U $qry \
-   --very-sensitive -k 1000 --threads $p | \
+"${bowtie}/bowtie2" -f -a -N 1 --local -x "${index_dir}/${tgt_prefix}" -U $qry \
+   --very-sensitive-local --threads $p | \
    samtools view -b -o "${out_dir}/${qry_prefix}.bam" -@ $p
