@@ -156,7 +156,7 @@ ggplot(visium_df, aes(x=x, y=y, col=gexp)) + geom_point(size=1, alpha=1) + coord
   theme_void() + ggtitle('composite')
 
 xenium_df2 <- data.frame(xenium$rastpos, gexp=xenium$pixelval[g,])
-ggplot(xenium_df2, aes(x=x, y=y, col=gexp)) + geom_point(size=1, alpha=1) + coord_fixed() + 
+ggplot(xenium_df2, aes(x=x, y=y, col=gexp)) + geom_point(size=2, alpha=1) + coord_fixed() + 
   scale_color_gradient(low='lightgrey', high='red') +
   theme_void() + ggtitle(g)
 
