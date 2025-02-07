@@ -46,3 +46,14 @@ MERINGUE::plotEmbedding(emb.info[cells.have,], col = log10(new+1), main=paste0('
 new <- colSums(singlecell$counts[colnames(A), cells.have])
 MERINGUE::plotEmbedding(emb.info[cells.have,], col = log10(new+1), main=paste0('single cell: composite sum'))
 
+par(mfrow=c(1,3), mar=rep(4,4))
+plot(log10(x+1), log10(A[,1]+1))
+plot(log10(x+1), log10(rowSums(A)+1))
+plot(log10(x+1), log10(rowSums(weights*A)+1))
+
+## maybe make problem simpler...is the data better explained by just the target gene or sum with off targets?
+
+
+
+
+
