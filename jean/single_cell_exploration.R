@@ -118,7 +118,50 @@ MERINGUE::plotEmbedding(emb.info[cells.have,], col = log10(singlecell$counts[g, 
 cells.have2 <- intersect(rownames(emb.info), colnames(xenium$counts))
 MERINGUE::plotEmbedding(emb.info[cells.have2,], col = log10(xenium$counts[g, cells.have2]+1), main=paste0('xenium:', g))
 
-##### no need to make clusters ourselves...download theirs for now: https://www.10xgenomics.com/products/xenium-in-situ/preview-dataset-human-breast
+
+
+####### summarize
+cells.have <- intersect(rownames(emb.info), colnames(singlecell$counts))
+mm <- model.matrix(~ 0 + com[cells.have])
+colnames(mm) <- levels(com)
+
+singlecell.summary.mm <- singlecell$counts[, cells.have] %*% mm
+head(singlecell.summary.mm)
+
+cells.have2 <- intersect(rownames(emb.info), colnames(xenium$counts))
+mm <- model.matrix(~ 0 + com[cells.have2])
+colnames(mm) <- levels(com[cells.have2])
+
+xenium.summary.mm <- xenium$counts[, cells.have2] %*% mm
+head(xenium.summary.mm)
+
+
+
+m1 <- singlecell.summary.mm[shared.genes,]
+m1 <- scale(m1)
+m1 <- scale(t(m1))
+m1[is.na(m1)] <- 0
+heatmap(t(m1), scale='none')
+
+m2 <- xenium.summary.mm[shared.genes,]
+m2 <- scale(m2)
+m2 <- scale(t(m2))
+m2[is.na(m2)] <- 0
+heatmap(t(m2), scale='none')
+
+
+######### compare
+heatmap(t(as.matrix(singlecell.summary.mm[shared.genes,])), Rowv=NA, Colv=NA)
+heatmap(t(as.matrix(xenium.summary.mm[shared.genes,])), Rowv=NA, Colv=NA)
+
+ct = 2
+colnames(singlecell.summary.mm)[ct]
+colnames(xenium.summary.mm)[ct]
+df <- data.frame(singlecell = singlecell.summary.mm[shared.genes,1],
+                 xenium = xenium.summary.mm[shared.genes,1],
+                 label = shared.genes)
+ggplot(df, aes(x=singlecell, y=xenium, label=label)) + geom_point() + ggrepel::geom_label_repel() +
+  scale_x_log10() + scale_y_log10() + ggtitle(colnames(singlecell.summary.mm)[ct])
 
 
 
