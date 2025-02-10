@@ -34,6 +34,6 @@ qry_prefix="${qry_prefix%.fasta}"
 # indexing command (optional)
 #"${bowtie}/bowtie2-build" $tgt "${index_dir}/${tgt_prefix}" --threads $p
 
-"${bowtie}/bowtie2" -f -a -N 1 --local -x "${index_dir}/${tgt_prefix}" -U $qry \
+"${bowtie}/bowtie2" -f -a -N 1 --local -x "${index_dir}/${tgt_prefix}" -U $qry --norc \
    --very-sensitive-local --threads $p | \
    samtools view -b -o "${out_dir}/${qry_prefix}.bam" -@ $p
