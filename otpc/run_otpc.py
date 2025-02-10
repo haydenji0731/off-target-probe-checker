@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from commons import *
-import flip
+import rc
 
 def parse():
     parser = argparse.ArgumentParser(description="")
@@ -37,6 +37,4 @@ def main() -> None:
     args = parse()
     if not os.path.exists(args.out_dir): os.makedirs(args.out_dir)
     if args.forward:
-        flip.main(args)
-
-
+        rc.main(args)

@@ -101,9 +101,9 @@ def load_bam(fn, qinfos, tinfos, use_name) -> dict:
                 ainfos[qname].append(brec.is_forward)
     return ainfos
 
-def flip(ainfos, qfa, out_dir):
+def rc(ainfos, qfa, out_dir):
     unaligned = []
-    to_flip = []
+    to_rc = []
     for qname in ainfos:
         if len(ainfos[qname]) == 0:
             unaligned.append(qname)
@@ -111,18 +111,18 @@ def flip(ainfos, qfa, out_dir):
             continue
         else:
             assert all(not x for x in ainfos[qname])
-            to_flip.append(qname)
-    print(message(f"{len(to_flip)} transcripts to reverse complement", Mtype.PROG))
+            to_rc.append(qname)
+    print(message(f"{len(to_rc)} transcripts to reverse complement", Mtype.PROG))
     fn = os.path.join(out_dir, 'fwd_oriented.fa')
     with open(fn, 'w') as fh:
         for q in qfa:
-            if q.name in to_flip:
+            if q.name in to_rc:
                 seq = Seq(q.seq)
                 out_s = seq.reverse_complement()
             else:
                 out_s = q.seq
             fh.write(f'>{q.name}\n{out_s}\n')
-    return unaligned, to_flip
+    return unaligned, to_rc
 
 def main(args) -> None:
     bfn = align(args)
@@ -132,4 +132,4 @@ def main(args) -> None:
     missing_t = check_tinfo_completeness(qinfos, tinfos, args.use_name) # TODO: write out missing
     write_tinfos(args.out_dir, tinfos)
     ainfos = load_bam(bfn)
-    unaligned, flipped = flip(ainfos, qfa, args.out_dir)
+    unaligned, rced = rc(ainfos, qfa, args.out_dir)
