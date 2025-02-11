@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from otpc.commons import *
-from otpc import rc
+from otpc import rc, detect
 
 def parse():
     parser = argparse.ArgumentParser(description="")
@@ -19,7 +19,7 @@ def parse():
     parser.add_argument('--keep-dot', required=False, default=False, help="", \
                     action='store_true')
     parser.add_argument('--schema', type=list, required=False, \
-                    help="", default=['transcript', 'ID', 'Parent'])
+                    help="", default=['transcript', 'ID', 'Parent', 'gene_name'])
     parser.add_argument('-o', '--out-dir', type=str, required=False, \
                     help="output directory (default: out)", default="out")
     parser.add_argument('-p', '--threads', type=int, required=False, \
@@ -28,21 +28,37 @@ def parse():
                     default=False, action='store_true')
     parser.add_argument('--nucmer', required=False, help="", \
                     default=False, action='store_true') # TODO: consider making this default
+    parser.add_argument('--skip-detect', required=False, help="", \
+                    default=False, action='store_true')
     parser.add_argument('-b', '--binary', type=str, required=False, \
                     help="", default=None)
+    parser.add_argument('-pad', '--padding', type=int, required=False, \
+                    help="", default=5)
+    parser.add_argument('--force', required=False, help="", \
+                    default=False, action='store_true')
+    parser.add_argument('--skip-index', required=False, help="", \
+                    default=False, action='store_true')
     args = parser.parse_args()
     return args
 
 def main() -> None:
     args = parse()
     if not os.path.exists(args.out_dir): os.makedirs(args.out_dir)
+    # store parameters
+    param_fn = os.path.join(args.out_dir, "params.json")
+    store_params(args, param_fn)
     if args.fwd:
         rc.main(args)
-        new_qfn = os.path.join(args.out_dir, 'fwd_oriented.fa')
-        align(new_qfn, args.target, 'aln', args)
-    else:
-        align(args.query, args.target, 'aln', args)
-    
+    if not args.skip_detect:
+        if args.fwd: 
+            qfn = os.path.join(args.out_dir, 'fwd_oriented.fa')
+            if not os.path.exists(qfn):
+                print(message(f"cannot locate fwd_oriented.fa file", Mtype.ERR))
+                sys.exit(-1)
+        else:
+            qfn = args.query
+        bfn = align(qfn, args.target, "main", args)
+        detect.main(qfn, bfn, args)
 
 if __name__ == "__main__":
     main()

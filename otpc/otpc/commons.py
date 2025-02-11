@@ -8,6 +8,7 @@ from datetime import datetime
 from enum import Enum
 import sys
 from Bio.Seq import Seq
+import json
 
 RED = '\033[31m'
 GREEN = '\033[32m'
@@ -34,9 +35,15 @@ def align(qfn, tfn, prefix, args) -> str:
         raise NotImplementedError # TODO: implement
     else: # bt2 flow
         idx_fn = os.path.join(args.out_dir, 'target')
-        cmd = f'{aligner}-build -q {tfn} {idx_fn} --threads {args.threads}'
-        print(cmd)
-        call(cmd, shell=True)
+        if not args.skip_index:
+            cmd = f'{aligner}-build -q {tfn} {idx_fn} --threads {args.threads}'
+            print(cmd)
+            call(cmd, shell=True)
+
+        if not os.path.exists(f'{idx_fn}.1.bt2'):
+            print(message(f"bt2 index missing; please remove --skip-index flag", Mtype.ERR))
+            sys.exit(-1)
+
         if args.bam:
             cmd = f'{aligner} -f -a -N 1 --local -x {idx_fn} ' + \
                 f'-U {qfn} --very-sensitive-local --threads {args.threads} ' + \
@@ -47,3 +54,60 @@ def align(qfn, tfn, prefix, args) -> str:
         print(cmd)
         call(cmd, shell=True)
     return ofn
+
+def att2dict(s, sep):
+    temp = s.split(';')
+    d = dict()
+    for x in temp:
+        kv = x.split(sep)
+        if len(kv) != 2: continue
+        k = kv[0].strip()
+        v = kv[1].strip()
+        d[k] = v
+    return d
+
+# tinfo <k,v> = <transcript_id, gene_id>
+def build_tinfos(fn, att_sep, schema, keep_dot) -> dict:
+    df = pd.read_csv(fn, sep='\t', header=None)
+    df.columns = ['ctg', 'src', 'feat', 'start', 'end', 'score', 'strand', 'frame', 'att']
+    tinfos = dict()
+    ctr = 0
+    for _, row in df.iterrows():
+        if row['feat'] == schema[0]:
+            ctr += 1
+            att_d = att2dict(row['att'], att_sep)
+            if schema[1] not in att_d or schema[2] not in att_d: 
+                print(message(f"Invalid schema", Mtype.ERR))
+                return None # terminate
+            tid = att_d[schema[1]]
+            gid = att_d[schema[2]] if keep_dot else att_d[schema[2]].split('.')[0]
+            gname = att_d[schema[3]] if schema[3] in att_d else None
+            tinfos[tid] = (gid, gname)
+    print(message(f"loaded {ctr} transcripts", Mtype.PROG))
+    return tinfos
+
+def write_tinfos(out_dir, tinfos) -> None:
+    fn = os.path.join(out_dir, 't2g.csv')
+    with open(fn, 'w') as fh:
+        fh.write('transcript_id,gene_id,gene_name\n')
+        for x in tinfos:
+            y, z = tinfos[x]
+            fh.write(f'{x},{y},{z}\n')
+
+def load_tinfos(fn) -> dict:
+    tinfos = dict()
+    df = pd.read_csv(fn)
+    with open(fn, 'r') as fh:
+        for _, row in df.iterrows():
+            tinfos[row['transcript_id']] = (row['gene_id'], row['gene_name'])
+    return tinfos
+
+def write_lst(l, fn) -> None:
+    with open(fn, 'w') as fh:
+        for x in l:
+            fh.write(f'{x}\n')
+
+def store_params(args, fn):
+
+    with open(fn, 'w') as f:
+        json.dump(args.__dict__, f, indent=2)
