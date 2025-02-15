@@ -24,7 +24,7 @@ def message(s, mtype) -> str:
         raise Exception("Error while printing message")
     return f"{datetime.now()} {mtype.value[0]}{mtype.value[1]}{RESET} {s}"
 
-def align(qfn, tfn, prefix, args) -> str:
+def align(qfn, tfn, prefix, norc, args) -> str:
     print(message(f"aligning query probes to target transcripts", Mtype.PROG))
     ofn = os.path.join(args.out_dir, f'{prefix}.bam' if args.bam else f'{prefix}.sam')
     if args.binary:
@@ -44,12 +44,15 @@ def align(qfn, tfn, prefix, args) -> str:
             print(message(f"bt2 index missing; please remove --skip-index flag", Mtype.ERR))
             sys.exit(-1)
 
+        # add --norc flag
+        norc_flag = "--norc" if norc else ""
+
         if args.bam:
-            cmd = f'{aligner} -f -a -N 1 --local -x {idx_fn} ' + \
+            cmd = f'{aligner} -f -a -N 1 --local {norc_flag} -x {idx_fn} ' + \
                 f'-U {qfn} --very-sensitive-local --threads {args.threads} ' + \
                 f'| samtools view -b -o {ofn} -@ {args.threads}'
         else:
-            cmd = f'{aligner} -f -a -N 1 --local -x {idx_fn} ' + \
+            cmd = f'{aligner} -f -a -N 1 --local {norc_flag} -x {idx_fn} ' + \
                 f'-U {qfn} --very-sensitive-local --threads {args.threads} -S {ofn}'
         print(cmd)
         call(cmd, shell=True)

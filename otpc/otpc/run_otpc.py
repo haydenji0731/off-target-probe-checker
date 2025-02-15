@@ -57,7 +57,7 @@ def main() -> None:
                 sys.exit(-1)
         else:
             qfn = args.query
-        bfn = align(qfn, args.target, "main", args)
+        bfn = align(qfn, args.target, "main", True, args)
         detect.main(qfn, bfn, args)
 
 if __name__ == "__main__":

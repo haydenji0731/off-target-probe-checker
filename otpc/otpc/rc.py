@@ -67,7 +67,7 @@ def rc(ainfos, qfa, out_dir):
     return unaligned, to_rc
 
 def main(args) -> None:
-    bfn = align(args.query, args.target, 'temp', args)
+    bfn = align(args.query, args.target, 'temp', False, args)
     att_sep = ' ' if args.gtf else '='
 
     fn = os.path.join(args.out_dir, 't2g.csv')
