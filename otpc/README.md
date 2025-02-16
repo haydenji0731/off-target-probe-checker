@@ -8,12 +8,12 @@
 
 ```
 # substitute otpc with another env name
-conda create --name otpc pip -y && \
-conda activate otpc && \
-conda install samtools bioconda::bowtie2 bioconda::gffread -y && \
-pip install .
+$ conda create --name otpc pip -y
+$ conda activate otpc
+$ conda install samtools bioconda::bowtie2 bioconda::gffread -y
+$ pip install .
 ```
-copy-and-paste the above command to set up the environment.
+copy-and-paste above commands sequentially to set up the environment.
 
 ## Usage
 
