@@ -32,7 +32,19 @@ def align(qfn, tfn, prefix, norc, args) -> str:
     else:
         aligner = "nucmer" if args.nucmer else "bowtie2"
     if args.nucmer: # nucmer flow
-        raise NotImplementedError # TODO: implement
+        if args.bam:
+            temp_sam_fn = os.path.join(args.out_dir, 'temp.sam')
+            cmd = f'{aligner} --maxmatch -l {args.min_exact_match} -c 0 -t {args.threads} ' + \
+                f'{tfn} {qfn} --sam-long={temp_sam_fn}'
+            print(cmd); call(cmd, shell=True)
+            cmd = f'samtools view -b -o {ofn} {temp_sam_fn}'
+            print(cmd); call(cmd, shell=True)
+            cmd = f'rm {temp_sam_fn}'
+            print(cmd); call(cmd, shell=True)
+        else:
+            cmd = f'{aligner} --maxmatch -l {args.min_exact_match} -c 0 -t {args.threads} ' + \
+                f'{tfn} {qfn} --sam-long={ofn}'
+            print(cmd); call(cmd, shell=True)
     else: # bt2 flow
         idx_fn = os.path.join(args.out_dir, 'target')
         if not args.skip_index:

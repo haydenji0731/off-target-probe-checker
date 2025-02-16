@@ -92,4 +92,4 @@ def main(args) -> None:
         write_lst(unaligned, os.path.join(args.out_dir, 'temp.unmapped.lst'))
     if len(rced) > 0:
         write_lst(rced, os.path.join(args.out_dir, 'rev_cmped_probes.lst'))
-    print(message(f"wrote forward oriented probes a file", Mtype.PROG))
+    print(message(f"wrote forward oriented probes to a file", Mtype.PROG))

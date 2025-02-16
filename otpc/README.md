@@ -21,5 +21,5 @@ Below is a sample command:
 
 ```
 # --fwd flag enables automatic reverse complementation of reversely oriented probes
-otpc -q probes.fa -t transcripts.fa -a transcripts.gff --fwd -o out
+otpc -q probes.fa -t transcripts.fa -a transcripts.gff --fwd -o out [--nucmer]
 ```

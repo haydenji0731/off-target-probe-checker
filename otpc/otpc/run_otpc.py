@@ -28,6 +28,8 @@ def parse():
                     default=False, action='store_true')
     parser.add_argument('--nucmer', required=False, help="", \
                     default=False, action='store_true') # TODO: consider making this default
+    parser.add_argument('-l', '--min-exact-match', required=False, help="", \
+                    default=20, type=int)
     parser.add_argument('--skip-detect', required=False, help="", \
                     default=False, action='store_true')
     parser.add_argument('-b', '--binary', type=str, required=False, \
