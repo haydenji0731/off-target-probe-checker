@@ -59,7 +59,7 @@ def main() -> None:
                 sys.exit(-1)
         else:
             qfn = args.query
-        bfn = align(qfn, args.target, "main", True, args)
+        bfn = align(qfn, args.target, "main", True, args) # second pass alignment is forward-only
         detect.main(qfn, bfn, args)
 
 if __name__ == "__main__":
