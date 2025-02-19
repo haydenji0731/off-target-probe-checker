@@ -250,16 +250,17 @@ def detect_off_target(fn, qfa, pad, tinfos, is_nucmer):
 def write_results(ainfos, d):
     fn = os.path.join(d, 'probe2targets.tsv')
     with open(fn, 'w') as fh:
-        fh.write('probe_id\tn_targets\ttarget_ids\ttarget_names\tcigars\n')
+        fh.write('probe_id\tn_targets\ttarget_ids\ttarget_names\tcigars\ttranscript_types\n') # Caleb: add transcript type
         for qname in ainfos:
             temp = [x[0] for x in ainfos[qname]]
             gids = [x[0] for x in temp]
             gnames = [x[1] for x in temp]
             cigars = [x[1] for x in ainfos[qname]]
+            ttypes = [x[2] for x in temp] # Caleb: add transcript type
             gids_s = ','.join(gids)
             gnames_s = ','.join(gnames)
             cigar_s = ','.join(cigars)
-            fh.write(f'{qname}\t{len(gids)}\t[{gids_s}]\t[{gnames_s}]\t[{cigar_s}]\n')
+            fh.write(f'{qname}\t{len(gids)}\t[{gids_s}]\t[{gnames_s}]\t[{cigar_s}]\t{ttypes}\n') # Caleb: add transcript type
 
 def main(qfn, bfn, args) -> None:
     qfa = pyfastx.Fasta(qfn)
