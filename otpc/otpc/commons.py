@@ -47,7 +47,7 @@ def align(qfn, tfn, prefix, norc, args) -> str:
         else:
             cmd = f'{aligner} {f_flag} --maxmatch -l {args.min_exact_match} -c 0 -t {args.threads} ' + \
                 f'{tfn} {qfn} --sam-long={ofn}'
-            print(cmd); call(cmd, shell=True)
+            #print(cmd); call(cmd, shell=True)
     else: # bt2 flow
         idx_fn = os.path.join(args.out_dir, 'target')
         if not args.skip_index:
@@ -100,7 +100,7 @@ def build_tinfos(fn, att_sep, schema, keep_dot) -> dict:
             tid = att_d[schema[1]]
             gid = att_d[schema[2]] if keep_dot else att_d[schema[2]].split('.')[0]
             gname = att_d[schema[3]] if schema[3] in att_d else None
-            ttype = att_d.get('transcript_type', None) # Caleb: add transcript type
+            ttype = att_d.get(schema[4], None) # Caleb: add transcript type
             tinfos[tid] = (gid, gname, ttype) # Caleb: add transcript type
     print(message(f"loaded {ctr} transcripts", Mtype.PROG))
     return tinfos

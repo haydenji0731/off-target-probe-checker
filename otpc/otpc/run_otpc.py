@@ -18,8 +18,8 @@ def parse():
                     action='store_true')
     parser.add_argument('--keep-dot', required=False, default=False, help="", \
                     action='store_true')
-    parser.add_argument('--schema', type=list, required=False, \
-                    help="", default=['transcript', 'ID', 'Parent', 'gene_name'])
+    parser.add_argument('--schema', type=lambda s: s.split(','), required=False, \
+                    default=['transcript', 'ID', 'Parent', 'gene_name', 'transcript_type'])
     parser.add_argument('-o', '--out-dir', type=str, required=False, \
                     help="output directory (default: out)", default="out")
     parser.add_argument('-p', '--threads', type=int, required=False, \
@@ -45,6 +45,9 @@ def parse():
 
 def main() -> None:
     args = parse()
+    if not os.path.exists(args.query) or not os.path.exists(args.target):
+        print(message(f"cannot locate query and/or target files", Mtype.ERR))
+        sys.exit(-1)
     if not os.path.exists(args.out_dir): os.makedirs(args.out_dir)
     # store parameters
     param_fn = os.path.join(args.out_dir, "params.json")
