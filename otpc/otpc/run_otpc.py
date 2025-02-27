@@ -26,8 +26,8 @@ def parse():
                     help="number of threads (default: 1)", default=1)
     parser.add_argument('--fwd', required=False, help="", \
                     default=False, action='store_true')
-    parser.add_argument('--nucmer', required=False, help="", \
-                    default=False, action='store_true') # TODO: consider making this default
+    parser.add_argument('--bowtie2', required=False, help="", \
+                    default=False, action='store_true')
     parser.add_argument('-l', '--min-exact-match', required=False, help="", \
                     default=20, type=int)
     parser.add_argument('--skip-detect', required=False, help="", \
@@ -43,6 +43,7 @@ def parse():
     args = parser.parse_args()
     return args
 
+# TODO: separate out the fwd orientation workflow as a module
 def main() -> None:
     args = parse()
     if not os.path.exists(args.query) or not os.path.exists(args.target):
@@ -52,6 +53,7 @@ def main() -> None:
     # store parameters
     param_fn = os.path.join(args.out_dir, "params.json")
     store_params(args, param_fn)
+    
     if args.fwd:
         rc.main(args)
     if not args.skip_detect:

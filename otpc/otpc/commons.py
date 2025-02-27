@@ -31,8 +31,31 @@ def align(qfn, tfn, prefix, norc, args) -> str:
         aligner = args.binary
     else:
         aligner = "nucmer" if args.nucmer else "bowtie2"
-    if args.nucmer: # nucmer flow
-        # add -f flag
+    if args.bowtie2: # bt2 flow
+        idx_fn = os.path.join(args.out_dir, 'target')
+        if not args.skip_index:
+            cmd = f'{aligner}-build -q {tfn} {idx_fn} --threads {args.threads}'
+            print(cmd)
+            call(cmd, shell=True)
+
+        if not os.path.exists(f'{idx_fn}.1.bt2'):
+            print(message(f"bt2 index missing; please remove --skip-index flag", Mtype.ERR))
+            sys.exit(-1)
+
+        # add --norc flag if 2nd alignment
+        norc_flag = "--norc" if norc else ""
+
+        if args.bam:
+            cmd = f'{aligner} -f -a -N 1 --local {norc_flag} -x {idx_fn} ' + \
+                f'-U {qfn} --very-sensitive-local --threads {args.threads} ' + \
+                f'| samtools view -b -o {ofn} -@ {args.threads}'
+        else:
+            cmd = f'{aligner} -f -a -N 1 --local {norc_flag} -x {idx_fn} ' + \
+                f'-U {qfn} --very-sensitive-local --threads {args.threads} -S {ofn}'
+        print(cmd)
+        call(cmd, shell=True)
+    else: # nucmer flow
+        # add -f flag if 2nd alignment
         f_flag = "-f" if norc else ""
 
         if args.bam:
@@ -48,29 +71,6 @@ def align(qfn, tfn, prefix, norc, args) -> str:
             cmd = f'{aligner} {f_flag} --maxmatch -l {args.min_exact_match} -c 0 -t {args.threads} ' + \
                 f'{tfn} {qfn} --sam-long={ofn}'
             print(cmd); call(cmd, shell=True)
-    else: # bt2 flow
-        idx_fn = os.path.join(args.out_dir, 'target')
-        if not args.skip_index:
-            cmd = f'{aligner}-build -q {tfn} {idx_fn} --threads {args.threads}'
-            print(cmd)
-            call(cmd, shell=True)
-
-        if not os.path.exists(f'{idx_fn}.1.bt2'):
-            print(message(f"bt2 index missing; please remove --skip-index flag", Mtype.ERR))
-            sys.exit(-1)
-
-        # add --norc flag
-        norc_flag = "--norc" if norc else ""
-
-        if args.bam:
-            cmd = f'{aligner} -f -a -N 1 --local {norc_flag} -x {idx_fn} ' + \
-                f'-U {qfn} --very-sensitive-local --threads {args.threads} ' + \
-                f'| samtools view -b -o {ofn} -@ {args.threads}'
-        else:
-            cmd = f'{aligner} -f -a -N 1 --local {norc_flag} -x {idx_fn} ' + \
-                f'-U {qfn} --very-sensitive-local --threads {args.threads} -S {ofn}'
-        print(cmd)
-        call(cmd, shell=True)
     return ofn
 
 def att2dict(s, sep):
