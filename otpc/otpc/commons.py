@@ -25,12 +25,12 @@ def message(s, mtype) -> str:
     return f"{datetime.now()} {mtype.value[0]}{mtype.value[1]}{RESET} {s}"
 
 def align(qfn, tfn, prefix, norc, args) -> str:
-    print(message(f"aligning query probes to target transcripts", Mtype.PROG))
     ofn = os.path.join(args.out_dir, f'{prefix}.bam' if args.bam else f'{prefix}.sam')
     if args.binary:
         aligner = args.binary
     else:
-        aligner = "nucmer" if args.nucmer else "bowtie2"
+        aligner = "bowtie2" if args.bowtie2 else "nucmer"
+    print(message(f"aligner: {aligner}", Mtype.PROG))
     if args.bowtie2: # bt2 flow
         idx_fn = os.path.join(args.out_dir, 'target')
         if not args.skip_index:
@@ -73,6 +73,18 @@ def align(qfn, tfn, prefix, norc, args) -> str:
             print(cmd); call(cmd, shell=True)
     return ofn
 
+def align_nm(qfn, tfn, prefix, args) -> str:
+    ofn = os.path.join(args.out_dir, f'{prefix}.mums')
+    if args.binary:
+        aligner = args.binary
+    else:
+        aligner = "mummer" # mummer is the only compatible aligner here
+    print(message(f"aligner: {aligner}", Mtype.PROG))
+    cmd = f'{aligner} -maxmatch -l {args.min_exact_match} -t {args.threads} ' + \
+        f'{tfn} {qfn} > {ofn}'
+    print(cmd); call(cmd, shell=True)
+    return ofn
+
 def att2dict(s, sep):
     temp = s.split(';')
     d = dict()
@@ -100,13 +112,17 @@ def build_tinfos(fn, att_sep, schema, keep_dot) -> dict:
             tid = att_d[schema[1]]
             gid = att_d[schema[2]] if keep_dot else att_d[schema[2]].split('.')[0]
             gname = att_d[schema[3]] if schema[3] in att_d else None
+            if gname:
+                temp = gname.split(',')
+                if len(temp) > 1:
+                    temp = [x.strip() for x in temp]
+                    gname = ';'.join(temp)
             ttype = att_d.get(schema[4], None) # Caleb: add transcript type
             tinfos[tid] = (gid, gname, ttype) # Caleb: add transcript type
     print(message(f"loaded {ctr} transcripts", Mtype.PROG))
     return tinfos
 
-def write_tinfos(out_dir, tinfos) -> None:
-    fn = os.path.join(out_dir, 't2g.csv')
+def write_tinfos(fn, tinfos) -> None:
     with open(fn, 'w') as fh:
         fh.write('transcript_id,gene_id,gene_name,transcript_type\n') # Caleb: add transcript type
         for x in tinfos:
@@ -121,7 +137,7 @@ def load_tinfos(fn) -> dict:
             tinfos[row['transcript_id']] = (row['gene_id'], row['gene_name'], row['transcript_type']) # Caleb: add transcript type
     return tinfos
 
-def write_lst(l, fn) -> None:
+def write_lst2file(l, fn) -> None:
     with open(fn, 'w') as fh:
         for x in l:
             fh.write(f'{x}\n')

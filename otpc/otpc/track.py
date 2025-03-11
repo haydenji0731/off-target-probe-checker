@@ -163,7 +163,7 @@ def compress_bvec(bvec):
     out.append(f"{char2sym(curr_char)}{ctr}")
     return ''.join(out)
 
-def detect_off_target(fn, qfa, pad, tinfos, is_nucmer):
+def track_target_pad(fn, qfa, pad, tinfos, is_nucmer):
     unaligned = []
     ainfos = dict()
     with pysam.AlignmentFile(fn, 'rb') as fh:
@@ -181,7 +181,7 @@ def detect_off_target(fn, qfa, pad, tinfos, is_nucmer):
                 assert len(crit_bvec) == qlen # sanity check
                 crit_dvec = int(crit_bvec, 2)
                 if qname not in ainfos:
-                    ainfos[qname] = set()
+                    ainfos[qname] = set() # empty if no brec is passing
                 cigar = brec.cigarstring
                 cigar_tups = brec.cigartuples
                 num_mismatch = int(brec.get_tag('NM'))
@@ -196,7 +196,7 @@ def detect_off_target(fn, qfa, pad, tinfos, is_nucmer):
                         else:
                             md_bvec = convert_md2bit(md_tag)
                         if crit_dvec & int(md_bvec, 2) == crit_dvec:
-                            ainfos[qname].add((tinfos[tname], compress_bvec(md_bvec)))
+                            ainfos[qname].add((tname, tinfos[tname], compress_bvec(md_bvec)))
                 else:
                     if 'D' in cigar: # handle deletions separately
                         # NOTE: no need to check num_mismatch == 0 as dels count as mismatches (i.e., nm > 0 guaranteed)
@@ -214,7 +214,7 @@ def detect_off_target(fn, qfa, pad, tinfos, is_nucmer):
                                 break
                         if hit:
                             assert final_bvec is not None
-                            ainfos[qname].add((tinfos[tname], compress_bvec(final_bvec)))
+                            ainfos[qname].add((tname, tinfos[tname], compress_bvec(final_bvec)))
                     else:
                         cigar_bvec, clip_info, ins_info = convert_cigar2bit(cigar_tups)
                         if num_mismatch == 0: # accounts for cases with just soft clips
@@ -244,38 +244,122 @@ def detect_off_target(fn, qfa, pad, tinfos, is_nucmer):
                                 assert len(temp) == len(cigar_bvec) # sanity check
                                 final_bvec = bitwise_and(cigar_bvec, temp)
                         if crit_dvec & int(final_bvec, 2) == crit_dvec:
-                            ainfos[qname].add((tinfos[tname], compress_bvec(final_bvec)))
+                            ainfos[qname].add((tname, tinfos[tname], compress_bvec(final_bvec)))
+    return unaligned, ainfos
+
+def load_mums(fn) -> dict:
+    mums = dict()
+    with open(fn, 'r') as fh:
+        for ln in fh:
+            clean_ln = ln.strip()
+            if clean_ln[0] == '>':
+                qname = clean_ln.split()[1].replace("> ", "")
+            else:
+                temp = clean_ln.split()
+                if qname not in mums:
+                    mums[qname] = [(temp[0], int(temp[1]), int(temp[2]), int(temp[3]))]
+                else:
+                    mums[qname].append((temp[0], int(temp[1]), int(temp[2]), int(temp[3])))
+    return mums
+
+def check_lft_and_rgt(mrec, qname, qry_fa, tgt_fa, max_nm):
+    qlen = len(qry_fa[qname].seq)
+    tname, tst, qst, mlen = mrec
+    if mlen == 40:
+        return (True, '1' * mlen, 0)
+    qst -= 1
+    tst -= 1
+    qen = qst + mlen
+    ten = tst + mlen
+    lft_qos = qst
+    rgt_qos = qlen - qen
+    qseq = qry_fa[qname].seq
+    tseq = tgt_fa[tname].seq
+    lft_tseq = tseq[tst - lft_qos:tst]
+    rgt_tseq = tseq[ten:ten + rgt_qos]
+    lft_qseq = qseq[qst - lft_qos:qst]
+    rgt_qseq = qseq[qen:qen + rgt_qos]
+    if len(lft_tseq) != lft_qos: # tseq runs out at 5'
+        return (False, None, -1)
+    if len(rgt_tseq) != rgt_qos: # tseq runs out at 3'
+        return (False, None, -1)
+    lft_mvec = ""
+    lft_nm = 0
+    for i in range(lft_qos):
+        if lft_tseq[i] == lft_qseq[i]:
+            lft_mvec += "1"
+        else:
+            lft_mvec += "0"
+            lft_nm += 1
+    rgt_mvec = ""
+    rgt_nm = 0
+    for i in range(rgt_qos):
+        if rgt_tseq[i] == rgt_qseq[i]:
+            rgt_mvec += "1"
+        else:
+            rgt_mvec += "0"
+            rgt_nm += 1
+    mvec = lft_mvec + ('1' * mlen) + rgt_mvec
+    assert len(mvec) ==  qlen # sanity check
+    nm = lft_nm + rgt_nm
+    return (nm <= max_nm, mvec, nm)
+
+def track_target_nm(fn, qfa, tfa, max_nm, tinfos):
+    mums = load_mums(fn)
+    unaligned = [x.name for x in qfa if x.name not in mums]
+    ainfos = dict()
+    for qname in mums:
+        ainfos[qname] = set()
+        for mrec in mums[qname]:
+            tname = mrec[0]
+            is_pass, mvec, _ = check_lft_and_rgt(mrec, qname, qfa, tfa, max_nm)
+            if is_pass:
+                ainfos[qname].add((tname, tinfos[tname], compress_bvec(mvec)))
     return unaligned, ainfos
 
 def write_results(ainfos, d):
     fn = os.path.join(d, 'probe2targets.tsv')
     with open(fn, 'w') as fh:
-        fh.write('probe_id\tn_targets\ttarget_ids\ttarget_names\tcigars\ttranscript_types\n') # Caleb: add transcript type
+        fh.write('probe_id\tn_genes\tgene_ids\tgene_names\tcigars\ttranscript_ids\ttranscript_types\n')
         for qname in ainfos:
-            temp = [x[0] for x in ainfos[qname]]
+            temp = [x[1] for x in ainfos[qname]]
             gids = [x[0] for x in temp]
             gnames = [x[1] for x in temp]
-            cigars = [x[1] for x in ainfos[qname]]
-            ttypes = [x[2] for x in temp] # Caleb: add transcript type
+            ttypes = [x[2] for x in temp]
+            tnames = [x[0] for x in ainfos[qname]]
+            cigars = [x[2] for x in ainfos[qname]]
             gids_s = ','.join(gids)
             gnames_s = ','.join(gnames) # TODO: test if None gene_name values throw an error here
             cigar_s = ','.join(cigars)
-            fh.write(f'{qname}\t{len(gids)}\t[{gids_s}]\t[{gnames_s}]\t[{cigar_s}]\t{ttypes}\n') # Caleb: add transcript type
+            ttypes_s = ','.join(ttypes)
+            tnames_s = ','.join(tnames)
+            fh.write(f'{qname}\t{len(gids)}\t[{gids_s}]\t[{gnames_s}]\t[{cigar_s}]\t[{tnames_s}]\t[{ttypes_s}]\n')
 
-def main(qfn, bfn, args) -> None:
-    qfa = pyfastx.Fasta(qfn)
+def main(args) -> None:
+    print(message(f"aligning query probes to target transcripts", Mtype.PROG))
+    if args.mode == 'pad':
+        afn = align(args.query, args.target, "track", True, args)
+    else: # args.mode == 'nm'
+        afn = align_nm(args.query, args.target, "track", args)
+    qfa = pyfastx.Fasta(args.query)
 
-    # check if t2g.csv file already exists
-    fn = os.path.join(args.out_dir, 't2g.csv')
+    print(message(f"loading target transcriptome infos", Mtype.PROG))
+    fn = os.path.join(args.out_dir, 'detect_t2g.csv')
     if not os.path.exists(fn) or args.force:
         att_sep = ' ' if args.gtf else '='
+        print(message(f"building t2g mappings", Mtype.PROG))
         tinfos = build_tinfos(args.annotation, att_sep, args.schema, args.keep_dot)
-        write_tinfos(args.out_dir, tinfos)
+        write_tinfos(fn, tinfos)
     else:
         tinfos = load_tinfos(fn)
     
     print(message(f"detecting potential off-target probe activities", Mtype.PROG))
-    unaligned, ainfos = detect_off_target(bfn, qfa, args.padding, tinfos, args.nucmer)
-    write_lst(unaligned, os.path.join(args.out_dir, 'main.unmapped.lst'))
+    if args.mode == 'pad':
+        unaligned, ainfos = track_target_pad(afn, qfa, args.padding, tinfos, not args.bowtie2)
+    elif args.mode == 'nm':
+        tfa = pyfastx.Fasta(args.target)
+        unaligned, ainfos = track_target_nm(afn, qfa, tfa, args.max_mismatch, tinfos)
+    print(f"{len(unaligned)} / {len(qfa)} probes unmapped")
+    write_lst2file(unaligned, os.path.join(args.out_dir, 'track.unmapped.txt'))
     write_results(ainfos, args.out_dir)
     print(message(f"finished", Mtype.PROG))
