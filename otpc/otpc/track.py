@@ -163,14 +163,13 @@ def compress_bvec(bvec):
     out.append(f"{char2sym(curr_char)}{ctr}")
     return ''.join(out)
 
-def track_target_pad(fn, qfa, pad, tinfos, is_nucmer):
-    unaligned = []
+def track_target_pad(fn, qfa, pad, tinfos, is_nucmer) -> dict:
     ainfos = dict()
     with pysam.AlignmentFile(fn, 'rb') as fh:
         for brec in fh:
             qname = brec.query_name
+            # NOTE: nucmer doesn't output unmapped reads
             if brec.is_unmapped:
-                unaligned.append(qname)
                 continue
             elif brec.is_supplementary:
                 continue
@@ -189,14 +188,16 @@ def track_target_pad(fn, qfa, pad, tinfos, is_nucmer):
                 tstart = brec.reference_start
                 if cigar == f'{qlen}M':
                     if num_mismatch == 0:
-                        ainfos[qname].add((tinfos[tname], f'={qlen}')) # (gid, gname)
+                        ainfos[qname].add((tname, (tinfos[tname][0], tinfos[tname][1]), \
+                                        tinfos[tname][2], f'={qlen}'))
                     else:
                         if is_nucmer:
                             md_bvec = convert_md2bit_nucmer(md_tag, tstart)
                         else:
                             md_bvec = convert_md2bit(md_tag)
                         if crit_dvec & int(md_bvec, 2) == crit_dvec:
-                            ainfos[qname].add((tname, tinfos[tname], compress_bvec(md_bvec)))
+                            ainfos[qname].add((tname, (tinfos[tname][0], tinfos[tname][1]), \
+                                        tinfos[tname][2], compress_bvec(final_bvec)))
                 else:
                     if 'D' in cigar: # handle deletions separately
                         # NOTE: no need to check num_mismatch == 0 as dels count as mismatches (i.e., nm > 0 guaranteed)
@@ -214,7 +215,8 @@ def track_target_pad(fn, qfa, pad, tinfos, is_nucmer):
                                 break
                         if hit:
                             assert final_bvec is not None
-                            ainfos[qname].add((tname, tinfos[tname], compress_bvec(final_bvec)))
+                            ainfos[qname].add((tname, (tinfos[tname][0], tinfos[tname][1]), \
+                                        tinfos[tname][2], compress_bvec(final_bvec)))
                     else:
                         cigar_bvec, clip_info, ins_info = convert_cigar2bit(cigar_tups)
                         if num_mismatch == 0: # accounts for cases with just soft clips
@@ -244,8 +246,9 @@ def track_target_pad(fn, qfa, pad, tinfos, is_nucmer):
                                 assert len(temp) == len(cigar_bvec) # sanity check
                                 final_bvec = bitwise_and(cigar_bvec, temp)
                         if crit_dvec & int(final_bvec, 2) == crit_dvec:
-                            ainfos[qname].add((tname, tinfos[tname], compress_bvec(final_bvec)))
-    return unaligned, ainfos
+                            ainfos[qname].add((tname, (tinfos[tname][0], tinfos[tname][1]), \
+                                            tinfos[tname][2], compress_bvec(final_bvec)))
+    return ainfos
 
 def load_mums(fn) -> dict:
     mums = dict()
@@ -304,9 +307,8 @@ def check_lft_and_rgt(mrec, qname, qry_fa, tgt_fa, max_nm):
     nm = lft_nm + rgt_nm
     return (nm <= max_nm, mvec, nm)
 
-def track_target_nm(fn, qfa, tfa, max_nm, tinfos):
+def track_target_nm(fn, qfa, tfa, max_nm, tinfos) -> dict:
     mums = load_mums(fn)
-    unaligned = [x.name for x in qfa if x.name not in mums]
     ainfos = dict()
     for qname in mums:
         ainfos[qname] = set()
@@ -315,25 +317,44 @@ def track_target_nm(fn, qfa, tfa, max_nm, tinfos):
             is_pass, mvec, _ = check_lft_and_rgt(mrec, qname, qfa, tfa, max_nm)
             if is_pass:
                 ainfos[qname].add((tname, tinfos[tname], compress_bvec(mvec)))
-    return unaligned, ainfos
+    return ainfos
 
-def write_results(ainfos, d):
+def get_unaligned(qfa, ainfos) -> list:
+    unaligned = []
+    for x in qfa:
+        if x.name not in ainfos:
+            unaligned.append(x.name)
+    return unaligned
+    
+def write_results(ainfos, d) -> list:
     fn = os.path.join(d, 'probe2targets.tsv')
+    no_hit = []
     with open(fn, 'w') as fh:
         fh.write('probe_id\tn_genes\tgene_ids\tgene_names\tcigars\ttranscript_ids\ttranscript_types\n')
         for qname in ainfos:
-            temp = [x[1] for x in ainfos[qname]]
-            gids = [x[0] for x in temp]
-            gnames = [x[1] for x in temp]
-            ttypes = [x[2] for x in temp]
+            if len(ainfos[qname]) == 0:
+                no_hit.append(qname)
+                continue
             tnames = [x[0] for x in ainfos[qname]]
-            cigars = [x[2] for x in ainfos[qname]]
+            genes = [x[1] for x in ainfos[qname]]
+            gids = [x[0] for x in genes]
+            gnames = [x[1] for x in genes]
+            ttypes = [x[2] for x in ainfos[qname]]
+            cigars = [x[3] for x in ainfos[qname]]
+            try:
+                assert len(gids) == len(gnames) # sanity check
+            except:
+                print(message(f">1 reference gene IDs might share the same gene name", Mtype.WARN))
+                print(gids)
+                print(gnames)
             gids_s = ','.join(gids)
             gnames_s = ','.join(gnames) # TODO: test if None gene_name values throw an error here
             cigar_s = ','.join(cigars)
             ttypes_s = ','.join(ttypes)
             tnames_s = ','.join(tnames)
-            fh.write(f'{qname}\t{len(gids)}\t[{gids_s}]\t[{gnames_s}]\t[{cigar_s}]\t[{tnames_s}]\t[{ttypes_s}]\n')
+            # n_genes = # of distinct gene_names
+            fh.write(f'{qname}\t{len(set(gnames))}\t[{gids_s}]\t[{gnames_s}]\t[{cigar_s}]\t[{tnames_s}]\t[{ttypes_s}]\n')
+    return no_hit
 
 def main(args) -> None:
     print(message(f"aligning query probes to target transcripts", Mtype.PROG))
@@ -344,7 +365,7 @@ def main(args) -> None:
     qfa = pyfastx.Fasta(args.query)
 
     print(message(f"loading target transcriptome infos", Mtype.PROG))
-    fn = os.path.join(args.out_dir, 'detect_t2g.csv')
+    fn = os.path.join(args.out_dir, 'track_t2g.csv')
     if not os.path.exists(fn) or args.force:
         att_sep = ' ' if args.gtf else '='
         print(message(f"building t2g mappings", Mtype.PROG))
@@ -355,11 +376,15 @@ def main(args) -> None:
     
     print(message(f"detecting potential off-target probe activities", Mtype.PROG))
     if args.mode == 'pad':
-        unaligned, ainfos = track_target_pad(afn, qfa, args.padding, tinfos, not args.bowtie2)
+        ainfos = track_target_pad(afn, qfa, args.pad_length, tinfos, not args.bowtie2)
+        unaligned = get_unaligned(qfa, ainfos)
     elif args.mode == 'nm':
         tfa = pyfastx.Fasta(args.target)
-        unaligned, ainfos = track_target_nm(afn, qfa, tfa, args.max_mismatch, tinfos)
-    print(f"{len(unaligned)} / {len(qfa)} probes unmapped")
+        ainfos = track_target_nm(afn, qfa, tfa, args.max_mismatch, tinfos)
+        unaligned = get_unaligned(qfa, ainfos)
+    print(message(f"{len(unaligned)} / {len(qfa)} probes unmapped", Mtype.PROG))
     write_lst2file(unaligned, os.path.join(args.out_dir, 'track.unmapped.txt'))
-    write_results(ainfos, args.out_dir)
+    no_hit = write_results(ainfos, args.out_dir)
+    write_lst2file(no_hit, os.path.join(args.out_dir, 'track.no_hit.txt'))
+    print(message(f"{len(no_hit)} / {len(qfa) - len(unaligned)} mapped probes with no passing hit", Mtype.PROG))
     print(message(f"finished", Mtype.PROG))

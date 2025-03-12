@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from otpc.commons import *
-from otpc import flip, track
+from otpc import flip, track, stat
 
 def parse():
     parser = argparse.ArgumentParser(description="")
@@ -52,16 +52,19 @@ def parse():
     parser_track.add_argument('-x', '--max-mismatch', type=int, required=False, \
                     help="", default=1)
     
-    # predict module
-    parser_predict = subparsers.add_parser('predict', help="")
-    parser_predict.add_argument('-i', '--input-file', type=str, required=True, \
+    # stat module
+    parser_stat = subparsers.add_parser('stat', help="")
+    parser_stat.add_argument('-i', '--in-file', type=str, required=True, \
                     help="track module results (i.e., probe2targets.csv)")
-    parser_predict.add_argument('--exclude-pseudo', required=False, default=False, help="", \
+    parser_stat.add_argument('-q', '--query', type=str, required=True, \
+                    help="query probe sequences (fasta)")
+    parser_stat.add_argument('--exclude-pseudo', required=False, default=False, help="", \
                     action='store_true')
+    parser_stat.add_argument('-s', '--syn-file', type=str, required=False,
+                    help="", default=None)
     
-
     args = parser.parse_args()
-    if args.module not in ['flip', 'track', 'predict']:
+    if args.module not in ['flip', 'track', 'stat']:
         parser.error(f"Invalid module {args.module}. Valid options are: flip, track, predict")
     return args
 
@@ -78,6 +81,11 @@ def check_track_args(args) -> bool:
     check_dir(args.out_dir)
     return all(os.path.exists(pth) for pth in \
             [args.query, args.target, args.annotation])
+
+def check_stat_args(args) -> bool:
+    check_dir(args.out_dir)
+    return all(os.path.exists(pth) for pth in \
+            [args.in_file])
 
 def main() -> None:
     args = parse()
@@ -97,6 +105,14 @@ def main() -> None:
         param_fn = os.path.join(args.out_dir, "track_params.json")
         store_params(args, param_fn)
         track.main(args)
+    elif args.module == 'stat':
+        if not check_stat_args(args):
+            print(message(f"cannot locate files", Mtype.ERR))
+            sys.exit(-1)
+        print(message(f"### STAT ###", Mtype.PROG))
+        param_fn = os.path.join(args.out_dir, "pred_params.json")
+        store_params(args, param_fn)
+        stat.main(args)
 
 if __name__ == "__main__":
     main()

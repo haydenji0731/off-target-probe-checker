@@ -142,6 +142,13 @@ def write_lst2file(l, fn) -> None:
         for x in l:
             fh.write(f'{x}\n')
 
+def read_lst(fn) -> list:
+    lst = []
+    with open(fn, 'r') as fh:
+        for x in fh:
+            lst.append(x.strip())
+    return lst
+
 def store_params(args, fn):
 
     with open(fn, 'w') as f:
