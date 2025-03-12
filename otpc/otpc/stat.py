@@ -49,6 +49,7 @@ def get_probe_info(s) -> tuple:
 def load_track_results(df, d, gene_syns) -> dict:
     prb_gene_tbl = dict()
     missed_target_prbs = []
+    multi_target_prbs = []
     for i, row in df.iterrows():
         pinfo = get_probe_info(row['probe_id'])
         if not pinfo:
@@ -69,7 +70,15 @@ def load_track_results(df, d, gene_syns) -> dict:
                     missed_target_prbs.append(row['probe_id'])
             else:
                 missed_target_prbs.append(row['probe_id'])
-        
+        if len(gnames) == 1:
+                if p_gname in missed_target_prbs:
+                    multi_target_prbs.append(p_gname)
+        elif len(gnames) > 1:
+            multi_target_prbs.append(p_gname)
+        else:
+            # TODO: check if this ever occurs
+            print(message(f"empty gene list?", Mtype.WARN))
+
         # CAUTION: there might be >1 distinct gene_ids for the same gene_name
         if p_gname not in prb_gene_tbl:
             prb_gene_tbl[p_gname] = ProbeGene(p_gid, p_gname)
@@ -77,9 +86,11 @@ def load_track_results(df, d, gene_syns) -> dict:
         assert pid in prb_gene_tbl[p_gname].probe_hits # sanity check
     print(message(f"number of probes missing targets: {len(missed_target_prbs)}", Mtype.PROG))
     write_lst2file(missed_target_prbs, os.path.join(d, 'stat_missed_probes.txt'))
+    print(message(f"number of probes with off-target binding: {len(multi_target_prbs)}", Mtype.PROG))
+    write_lst2file(multi_target_prbs, os.path.join(d, 'stat_off_target_probes.txt'))
     return prb_gene_tbl
 
-def summarize(prb_gene_tbl, exclude) -> dict:
+def summarize(prb_gene_tbl, exclude, pc_only) -> dict:
     agg = dict()
     for p_gname in prb_gene_tbl:
         temp = dict()
@@ -88,6 +99,9 @@ def summarize(prb_gene_tbl, exclude) -> dict:
             temp2 = set()
             for ht in prb.hits:
                 if 'pseudogene' in ht.ttype and exclude:
+                    continue
+                # TODO: allow user to specify pattern for pc txes
+                if pc_only and (ht.ttype != 'protein_coding' or ht.ttype != 'mRNA'):
                     continue
                 if ht.gname not in temp:
                     temp[ht.gname] = [1, 1, {ht.gid}]
@@ -175,5 +189,5 @@ def main(args) -> None:
     track_df = pd.read_csv(args.in_file, sep='\t')
     prb_gene_tbl = load_track_results(track_df, args.out_dir, gene_syns)
     print(message(f"number of probe genes: {len(prb_gene_tbl)}", Mtype.PROG))
-    agg = summarize(prb_gene_tbl, args.exclude_pseudo)
+    agg = summarize(prb_gene_tbl, args.exclude_pseudo, args.pc_only)
     write_summary(args.out_dir, agg, pgene_info, gene_syns)

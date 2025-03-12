@@ -60,6 +60,8 @@ def parse():
                     help="query probe sequences (fasta)")
     parser_stat.add_argument('--exclude-pseudo', required=False, default=False, help="", \
                     action='store_true')
+    parser_stat.add_argument('--pc-only', required=False, default=False, help="", \
+                    action='store_true')
     parser_stat.add_argument('-s', '--syn-file', type=str, required=False,
                     help="", default=None)
     
@@ -108,6 +110,9 @@ def main() -> None:
     elif args.module == 'stat':
         if not check_stat_args(args):
             print(message(f"cannot locate files", Mtype.ERR))
+            sys.exit(-1)
+        if args.pc_only and args.exclude_pseudo:
+            print(message(f"cannot use both --pc-only and --exclude-pseudo flags", Mtype.ERR))
             sys.exit(-1)
         print(message(f"### STAT ###", Mtype.PROG))
         param_fn = os.path.join(args.out_dir, "pred_params.json")
