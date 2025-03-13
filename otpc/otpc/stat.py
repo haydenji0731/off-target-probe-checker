@@ -64,6 +64,7 @@ def load_track_results(df, d, gene_syns) -> dict:
         assert len(cigars) == len(ttypes) == len(tids) == len(gnames) == len(gids) # sanity check
         prb = Probe(pid, gids, gnames, len(cigars), tids, cigars, ttypes)
 
+        # TODO: incorporate --pc-only and --no-pseudo logic here
         # count missed_target and off_target probes
         off = False
         missed = True
@@ -106,7 +107,7 @@ def summarize(prb_gene_tbl, exclude, pc_only) -> dict:
                 if 'pseudogene' in ht.ttype and exclude:
                     continue
                 # TODO: allow user to specify pattern for pc txes
-                if pc_only and (ht.ttype != 'protein_coding' or ht.ttype != 'mRNA'):
+                if pc_only and (ht.ttype != 'protein_coding' and ht.ttype != 'mRNA'):
                     continue
                 if ht.gname not in temp:
                     temp[ht.gname] = [1, 1, {ht.gid}]
@@ -138,6 +139,7 @@ def write_summary(d, agg, pgene_info, gene_syns):
     missed_target = []
     off_target = []
     fn = os.path.join(d, 'collapsed_summary.tsv')
+    print(message(f"{len(clpsed)} / {len(pgene_info)} probe genes with at least 1 probe binding", Mtype.PROG))
     with open(fn, 'w') as fh:
         fh.write('target_gene\tn\taligned_to\tn_hits\tn_probes\n')
         for p_gname in clpsed:
@@ -161,7 +163,6 @@ def write_summary(d, agg, pgene_info, gene_syns):
                 off_target.append(p_gname)
             if missed:
                 missed_target.append(p_gname)
-
     print(message(f"number of missed probe genes: {len(missed_target)}", Mtype.PROG))
     print(message(f"number of off-target probe genes: {len(off_target)}", Mtype.PROG))
     write_lst2file(missed_target, os.path.join(d, 'stat_missed_genes.txt'))

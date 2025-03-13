@@ -115,7 +115,7 @@ def main() -> None:
             print(message(f"cannot use both --pc-only and --exclude-pseudo flags", Mtype.ERR))
             sys.exit(-1)
         print(message(f"### STAT ###", Mtype.PROG))
-        param_fn = os.path.join(args.out_dir, "pred_params.json")
+        param_fn = os.path.join(args.out_dir, "stat_params.json")
         store_params(args, param_fn)
         stat.main(args)
 

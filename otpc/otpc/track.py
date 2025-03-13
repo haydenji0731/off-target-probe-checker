@@ -343,7 +343,8 @@ def write_results(ainfos, d) -> list:
                 print(gids)
                 print(gnames)
             gids_s = ','.join(gids)
-            gnames_s = ','.join(gnames) # TODO: test if None gene_name values throw an error here
+            # handle no gene names
+            gnames_s = ','.join('None' if x is None else x for x in gnames)
             cigar_s = ','.join(cigars)
             ttypes_s = ','.join(ttypes)
             tnames_s = ','.join(tnames)
