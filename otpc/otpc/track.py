@@ -317,15 +317,9 @@ def track_target_nm(fn, qfa, tfa, max_nm, tinfos) -> dict:
             tname = mrec[0]
             is_pass, mvec, _ = check_lft_and_rgt(mrec, qname, qfa, tfa, max_nm)
             if is_pass:
-                ainfos[qname].add((tname, tinfos[tname], compress_bvec(mvec)))
+                ainfos[qname].add((tname, (tinfos[tname][0], tinfos[tname][1]), \
+                                            tinfos[tname][2], compress_bvec(mvec)))
     return ainfos
-
-def get_unaligned(qfa, ainfos) -> list:
-    unaligned = []
-    for x in qfa:
-        if x.name not in ainfos:
-            unaligned.append(x.name)
-    return unaligned
     
 def write_results(ainfos, d) -> list:
     fn = os.path.join(d, 'probe2targets.tsv')

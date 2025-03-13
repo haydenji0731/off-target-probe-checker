@@ -70,7 +70,7 @@ def align(qfn, tfn, prefix, norc, args) -> str:
         else:
             cmd = f'{aligner} {f_flag} --maxmatch -l {args.min_exact_match} -c 0 -t {args.threads} ' + \
                 f'{tfn} {qfn} --sam-long={ofn}'
-            # print(cmd); call(cmd, shell=True)
+            print(cmd); call(cmd, shell=True)
     return ofn
 
 def align_nm(qfn, tfn, prefix, args) -> str:
@@ -150,6 +150,12 @@ def read_lst(fn) -> list:
     return lst
 
 def store_params(args, fn):
-
     with open(fn, 'w') as f:
         json.dump(args.__dict__, f, indent=2)
+
+def get_unaligned(qfa, ainfos) -> list:
+    unaligned = []
+    for x in qfa:
+        if x.name not in ainfos:
+            unaligned.append(x.name)
+    return unaligned

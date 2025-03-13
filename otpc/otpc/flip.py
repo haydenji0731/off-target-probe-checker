@@ -49,17 +49,17 @@ def load_bam(fn, qinfos, tinfos, is_bam) -> dict:
     return ainfos
 
 def flip(ainfos, pfa, out_dir):
-    unaligned = []
+    missing_origin = []
     to_rc = []
     for qname in ainfos:
         if len(ainfos[qname]) == 0:
-            unaligned.append(qname)
+            missing_origin.append(qname)
         elif all(ainfos[qname]):
             continue
         else:
             assert all(not x for x in ainfos[qname])
             to_rc.append(qname)
-    print(message(f"{len(unaligned)} / {len(pfa)} probes unmapped", Mtype.PROG))
+    print(message(f"{len(missing_origin)} / {len(pfa)} probes not mapped to their origin", Mtype.PROG))
     print(message(f"{len(to_rc)} / {len(pfa)} probes to flip (i.e., reverse complement)", Mtype.PROG))
     fn = os.path.join(out_dir, 'fwd_oriented.fa')
     with open(fn, 'w') as fh:
@@ -70,7 +70,7 @@ def flip(ainfos, pfa, out_dir):
             else:
                 out_s = q.seq
             fh.write(f'>{q.name}\n{out_s}\n')
-    return unaligned, to_rc
+    return missing_origin, to_rc
 
 def main(args) -> None:
     print(message(f"aligning input probes to source transcripts", Mtype.PROG))
@@ -98,9 +98,13 @@ def main(args) -> None:
     
     print(message(f"parsing alignment results", Mtype.PROG))
     ainfos = load_bam(bfn, pinfos, sinfos, args.bam)
-    unaligned, flipped = flip(ainfos, pfa, args.out_dir)
+    unaligned = get_unaligned(pfa, ainfos)
+    print(message(f"{len(unaligned)} / {len(pfa)} probes unmapped", Mtype.PROG))
+    missing_origin, flipped = flip(ainfos, pfa, args.out_dir)
     if len(unaligned) > 0:
         write_lst2file(unaligned, os.path.join(args.out_dir, 'flip.unmapped.txt'))
+    if len(missing_origin) > 0:
+        write_lst2file(missing_origin, os.path.join(args.out_dir, 'flip.missing_ori.txt'))    
     if len(flipped) > 0:
         write_lst2file(flipped, os.path.join(args.out_dir, 'rev_cmped_probes.txt'))
     print(message(f"wrote forward oriented probes to a file", Mtype.PROG))
