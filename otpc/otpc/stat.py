@@ -64,20 +64,25 @@ def load_track_results(df, d, gene_syns) -> dict:
         assert len(cigars) == len(ttypes) == len(tids) == len(gnames) == len(gids) # sanity check
         prb = Probe(pid, gids, gnames, len(cigars), tids, cigars, ttypes)
 
-        if p_gname not in gnames:
-            if p_gname in gene_syns:
-                if gene_syns[p_gname] not in gnames:
-                    missed_target_prbs.append(row['probe_id'])
+        # count missed_target and off_target probes
+        off = False
+        missed = True
+        p_genes = [p_gname]
+        if p_gname in gene_syns:
+            p_genes.append(gene_syns[p_gname])
+        for x in gnames:
+            # NOTE: this brings back Caleb's number
+            # if x not in p_genes:
+            #     off = True
+
+            if x in p_genes:
+                missed = False
             else:
-                missed_target_prbs.append(row['probe_id'])
-        if len(gnames) == 1:
-                if p_gname in missed_target_prbs:
-                    multi_target_prbs.append(p_gname)
-        elif len(gnames) > 1:
-            multi_target_prbs.append(p_gname)
-        else:
-            # TODO: check if this ever occurs
-            print(message(f"empty gene list?", Mtype.WARN))
+                off = True
+        if off:
+            multi_target_prbs.append(row['probe_id'])
+        if missed:
+            missed_target_prbs.append(row['probe_id'])
 
         # CAUTION: there might be >1 distinct gene_ids for the same gene_name
         if p_gname not in prb_gene_tbl:
@@ -140,20 +145,23 @@ def write_summary(d, agg, pgene_info, gene_syns):
             fh.write(f'{p_gname}\t{pgene_info[p_gname]}\t[{','.join(temp[0])}]')
             fh.write(f'\t[{','.join(temp[1])}]\t[{','.join(temp[2])}]\n')
             gnames = temp[0]
-            if p_gname not in gnames:
-                if p_gname in gene_syns:
-                    if gene_syns[p_gname] not in gnames:
-                        missed_target.append(p_gname)
+
+            off = False
+            missed = True
+            p_genes = [p_gname]
+            if p_gname in gene_syns:
+                p_genes.append(gene_syns[p_gname])
+            
+            for x in gnames:
+                if x in p_genes:
+                    missed = False
                 else:
-                    missed_target.append(p_gname)
-            if len(gnames) == 1:
-                if p_gname in missed_target:
-                    off_target.append(p_gname)
-            elif len(gnames) > 1:
+                    off = True
+            if off:
                 off_target.append(p_gname)
-            else:
-                # TODO: check if this ever occurs
-                print(message(f"empty gene list?", Mtype.WARN))
+            if missed:
+                missed_target.append(p_gname)
+
     print(message(f"number of missed probe genes: {len(missed_target)}", Mtype.PROG))
     print(message(f"number of off-target probe genes: {len(off_target)}", Mtype.PROG))
     write_lst2file(missed_target, os.path.join(d, 'stat_missed_genes.txt'))

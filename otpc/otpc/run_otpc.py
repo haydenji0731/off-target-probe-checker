@@ -26,7 +26,7 @@ def parse():
                 default=False, action='store_true')
     
     subparsers = parser.add_subparsers(dest='module', \
-                            help="[flip, track]")
+                            help="[flip, track, stat]")
 
     # flip module
     parser_flip = subparsers.add_parser('flip', help="")

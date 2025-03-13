@@ -181,6 +181,7 @@ def track_target_pad(fn, qfa, pad, tinfos, is_nucmer) -> dict:
                 crit_dvec = int(crit_bvec, 2)
                 if qname not in ainfos:
                     ainfos[qname] = set() # empty if no brec is passing
+                    # NOTE: this used to be a set; explains the discrepancy in the output
                 cigar = brec.cigarstring
                 cigar_tups = brec.cigartuples
                 num_mismatch = int(brec.get_tag('NM'))

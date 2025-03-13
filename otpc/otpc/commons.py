@@ -70,7 +70,7 @@ def align(qfn, tfn, prefix, norc, args) -> str:
         else:
             cmd = f'{aligner} {f_flag} --maxmatch -l {args.min_exact_match} -c 0 -t {args.threads} ' + \
                 f'{tfn} {qfn} --sam-long={ofn}'
-            print(cmd); call(cmd, shell=True)
+            # print(cmd); call(cmd, shell=True)
     return ofn
 
 def align_nm(qfn, tfn, prefix, args) -> str:
