@@ -46,7 +46,13 @@ def get_probe_info(s) -> tuple:
     p_gid, p_gname, pid = temp
     return (p_gid, p_gname, pid)
 
-def load_track_results(df, d, gene_syns) -> dict:
+def is_all_ps(l) -> bool:
+    return all('pseudogene' in x for x in l)
+
+def is_all_non_pc(l) -> bool:
+    return all(x != 'protein_coding' and x != 'mRNA' for x in l)
+
+def load_track_results(df, d, gene_syns, exclude_ps, pc_only) -> dict:
     prb_gene_tbl = dict()
     missed_target_prbs = []
     multi_target_prbs = []
@@ -71,10 +77,9 @@ def load_track_results(df, d, gene_syns) -> dict:
         p_genes = [p_gname]
         if p_gname in gene_syns:
             p_genes.append(gene_syns[p_gname])
-        for x in gnames:
-            # NOTE: this brings back Caleb's number
-            # if x not in p_genes:
-            #     off = True
+        for i, x in enumerate(gnames):
+            if exclude_ps and 'pseudogene' in ttypes[i]: continue
+            if pc_only and (ttypes[i] != 'protein_coding' and ttypes[i] != 'mRNA'): continue
 
             if x in p_genes:
                 missed = False
@@ -96,7 +101,7 @@ def load_track_results(df, d, gene_syns) -> dict:
     write_lst2file(multi_target_prbs, os.path.join(d, 'stat_off_target_probes.txt'))
     return prb_gene_tbl
 
-def summarize(prb_gene_tbl, exclude, pc_only) -> dict:
+def summarize(prb_gene_tbl, exclude_ps, pc_only) -> dict:
     agg = dict()
     for p_gname in prb_gene_tbl:
         temp = dict()
@@ -104,7 +109,7 @@ def summarize(prb_gene_tbl, exclude, pc_only) -> dict:
             prb = prb_gene_tbl[p_gname].probe_hits[pid]
             temp2 = set()
             for ht in prb.hits:
-                if 'pseudogene' in ht.ttype and exclude:
+                if 'pseudogene' in ht.ttype and exclude_ps:
                     continue
                 # TODO: allow user to specify pattern for pc txes
                 if pc_only and (ht.ttype != 'protein_coding' and ht.ttype != 'mRNA'):
@@ -151,6 +156,7 @@ def write_summary(d, agg, pgene_info, gene_syns):
             off = False
             missed = True
             p_genes = [p_gname]
+    
             if p_gname in gene_syns:
                 p_genes.append(gene_syns[p_gname])
             
@@ -159,6 +165,7 @@ def write_summary(d, agg, pgene_info, gene_syns):
                     missed = False
                 else:
                     off = True
+
             if off:
                 off_target.append(p_gname)
             if missed:
@@ -196,7 +203,7 @@ def main(args) -> None:
     gene_syns = load_gene_syns(args.syn_file) if args.syn_file else []
     pgene_info = load_pgene_info(args.query)
     track_df = pd.read_csv(args.in_file, sep='\t')
-    prb_gene_tbl = load_track_results(track_df, args.out_dir, gene_syns)
+    prb_gene_tbl = load_track_results(track_df, args.out_dir, gene_syns, args.exclude_pseudo, args.pc_only)
     print(message(f"number of probe genes: {len(prb_gene_tbl)}", Mtype.PROG))
     agg = summarize(prb_gene_tbl, args.exclude_pseudo, args.pc_only)
     write_summary(args.out_dir, agg, pgene_info, gene_syns)
