@@ -6,6 +6,7 @@
 .Rproj.user
 data/*fa
 data/*fxi
+data/dev/
 caleb/hisat2/*
 caleb/hisat2_genome/*
 tools/
