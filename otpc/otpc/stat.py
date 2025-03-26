@@ -70,7 +70,6 @@ def load_track_results(df, d, gene_syns, exclude_ps, pc_only) -> dict:
         assert len(cigars) == len(ttypes) == len(tids) == len(gnames) == len(gids) # sanity check
         prb = Probe(pid, gids, gnames, len(cigars), tids, cigars, ttypes)
 
-        # TODO: incorporate --pc-only and --no-pseudo logic here
         # count missed_target and off_target probes
         off = False
         missed = True
